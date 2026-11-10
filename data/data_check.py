@@ -145,6 +145,11 @@ menus = menus[~menus["menu"].isin(deleted_menu)].reset_index(drop=True)
 for i in range(0, len(inventory)):
     print(str(i) + " : " + inventory["ingredient"][i])
 
+crafting_recipe.loc[len(crafting_recipe)] = ["mixed_herbs", "green_grass+toyherb"]
+crafting_recipe.loc[len(crafting_recipe)] = ["sweet_powder", "apple"]
+crafting_recipe.loc[len(crafting_recipe)] = ["sour_drop", "orange"]
+crafting_recipe.loc[len(crafting_recipe)] = ["heavy_spice", "purple_grass"]
+
 print(inventory)
 print(crafting_recipe)
 print(deleted_menu)
