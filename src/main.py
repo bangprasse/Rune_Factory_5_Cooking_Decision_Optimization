@@ -2,36 +2,35 @@ from ingredient import Ingredient
 from recipe import Recipe
 from menu import Menu
 import data_loader as dl
+from recipe_resolver import IngredientRequirement, CraftingOption, RecipeResolver
+import config
 
-inventory = dl.load_inventory("../data/inventory.csv")
-ingredient_types = dl.load_ingredient_types("../data/ingredient_types.csv")
-recipes = dl.load_crafting_recipes("../data/crafting_recipes.csv")
-menus = dl.load_menus("../data/menus.csv")
-config = dl.load_config("../data/config.csv")
+inventory = dl.load_inventory(config.INVENTORY_PATH)
+crafting_recipes = dl.load_crafting_recipes(config.CRAFTING_RECIPES_PATH)
+ingredient_types = dl.load_ingredient_types(config.INGREDIENT_TYPES_PATH)
+menus = dl.load_menus(config.MENUS_PATH)
 
+resolver = RecipeResolver(crafting_recipes, ingredient_types, inventory)
 
-# Check that all datasets loaded
-assert len(inventory) > 0
-assert len(ingredient_types) > 0
-assert len(recipes) > 0
-assert len(menus) > 0
-assert len(config) > 0
+menu_name, menu = next(iter(menus.items()))
 
-# Check data structures
-assert isinstance(inventory, dict)
-assert isinstance(ingredient_types, dict)
-assert isinstance(recipes, dict)
-assert isinstance(menus, dict)
-assert isinstance(config, dict)
+resolved_ingredients = resolver.resolve_requirements(menu.recipe.ingredients)
 
-# Check object types
-assert isinstance(next(iter(recipes.values())), Recipe)
-assert isinstance(next(iter(menus.values())), Menu)
+print("Menu:", menu_name)
 
-# Display dataset sizes
-print("Combined data loading test passed!")
-print(f"Inventory items: {len(inventory)}")
-print(f"Ingredient type mappings: {len(ingredient_types)}")
-print(f"Crafting recipes: {len(recipes)}")
-print(f"Menus: {len(menus)}")
-print(f"Config settings: {len(config)}")
+for ingredient in resolved_ingredients:
+    print(ingredient)
+
+errors = []
+
+for product_name, recipe in crafting_recipes.items():
+    try:
+        resolver.resolve_crafting_option(resolver.parse_requirement(product_name))
+    except ValueError as error:
+        errors.append(f"Recipe '{product_name}': {error}")
+
+print("Crafting recipes checked:", len(crafting_recipes))
+print("Errors:", len(errors))
+
+for error in errors:
+    print(error)
