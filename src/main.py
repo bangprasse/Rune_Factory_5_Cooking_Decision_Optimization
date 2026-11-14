@@ -4,33 +4,12 @@ from menu import Menu
 import data_loader as dl
 from recipe_resolver import IngredientRequirement, CraftingOption, RecipeResolver
 import config
+from optimizer import BasicOptimizer
 
-inventory = dl.load_inventory(config.INVENTORY_PATH)
-crafting_recipes = dl.load_crafting_recipes(config.CRAFTING_RECIPES_PATH)
-ingredient_types = dl.load_ingredient_types(config.INGREDIENT_TYPES_PATH)
-menus = dl.load_menus(config.MENUS_PATH)
+menu_prices = {"dish_a": 500, "dish_b": 800, "dish_c": 300}
 
-resolver = RecipeResolver(crafting_recipes, ingredient_types, inventory)
+optimizer = BasicOptimizer(menu_prices=menu_prices, target_dishes=10)
 
-menu_name, menu = next(iter(menus.items()))
+result = optimizer.solve()
 
-resolved_ingredients = resolver.resolve_requirements(menu.recipe.ingredients)
-
-print("Menu:", menu_name)
-
-for ingredient in resolved_ingredients:
-    print(ingredient)
-
-errors = []
-
-for product_name, recipe in crafting_recipes.items():
-    try:
-        resolver.resolve_crafting_option(resolver.parse_requirement(product_name))
-    except ValueError as error:
-        errors.append(f"Recipe '{product_name}': {error}")
-
-print("Crafting recipes checked:", len(crafting_recipes))
-print("Errors:", len(errors))
-
-for error in errors:
-    print(error)
+print(result)
