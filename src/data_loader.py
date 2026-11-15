@@ -232,3 +232,15 @@ def load_config(filepath):
             config[setting] = value
 
     return config
+
+
+def build_type_members(ingredient_types):
+    type_members = {}
+
+    for ingredient, ingredient_type in ingredient_types.items():
+        if ingredient_type not in type_members:
+            type_members[ingredient_type] = []
+
+        type_members[ingredient_type].append(ingredient)
+
+    return type_members

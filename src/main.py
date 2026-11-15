@@ -6,23 +6,16 @@ from recipe_resolver import IngredientRequirement, CraftingOption, RecipeResolve
 import config
 from optimizer import BasicOptimizer
 
-menu_prices = {"dish_a": 500, "dish_b": 800, "dish_c": 300}
+ingredient_types = dl.load_ingredient_types(config.INGREDIENT_TYPES_PATH)
 
-menu_ingredients = {
-    "dish_a": {"rice": 1, "egg": 1},
-    "dish_b": {"rice": 2, "milk": 1},
-    "dish_c": {"flour": 1, "egg": 1},
-}
+type_members = dl.build_type_members(ingredient_types)
 
-inventory = {"rice": 5, "egg": 3, "milk": 2, "flour": 4}
+print(type_members)
 
-optimizer = BasicOptimizer(
-    menu_prices=menu_prices,
-    target_dishes=3,
-    menu_ingredients=menu_ingredients,
-    inventory=inventory,
-)
+assert type_members["squid"] == ["lamp_squid", "squid", "sunsquid"]
 
-result = optimizer.solve()
+assert "apple_jam" in type_members["jam"]
 
-print(result)
+assert "monarch_mushroom" in type_members["mushroom"]
+
+print("Ingredient type mapping tests passed!")
