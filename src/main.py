@@ -6,16 +6,32 @@ from recipe_resolver import IngredientRequirement, CraftingOption, RecipeResolve
 import config
 from optimizer import BasicOptimizer
 
-ingredient_types = dl.load_ingredient_types(config.INGREDIENT_TYPES_PATH)
+# Menu prices
+menu_prices = {"test_squid_dish": 100}
 
-type_members = dl.build_type_members(ingredient_types)
+# One squid required per dish
+menu_ingredients = {"test_squid_dish": {"type:squid": 1}}
 
-print(type_members)
+# Available inventory
+inventory = {"lamp_squid": 1, "squid": 1, "sunsquid": 0}
 
-assert type_members["squid"] == ["lamp_squid", "squid", "sunsquid"]
+# Type mapping
+type_members = {"squid": ["lamp_squid", "squid", "sunsquid"]}
 
-assert "apple_jam" in type_members["jam"]
+# Create optimizer
+optimizer = BasicOptimizer(
+    menu_prices=menu_prices,
+    target_dishes=3,
+    menu_ingredients=menu_ingredients,
+    inventory=inventory,
+    type_members=type_members,
+)
 
-assert "monarch_mushroom" in type_members["mushroom"]
+# Solve
+result = optimizer.solve()
 
-print("Ingredient type mapping tests passed!")
+# Display results
+assert result["status"] != "Optimal"
+assert result["total_dishes"] == 0
+
+print("Squid infeasibility test passed!")
