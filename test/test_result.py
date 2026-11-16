@@ -1,4 +1,5 @@
 from src.result import OptimizationResult
+from src.menu import Menu
 
 
 def create_result(status):
@@ -62,7 +63,7 @@ def test_summary_optimal_result():
 
     report = result.summary()
 
-    assert "Rune Factory 5 Cooking Optimizaiton" in report
+    assert "Rune Factory 5 Cooking Optimization" in report
     assert "Status: OPTIMAL" in report
     assert "seafood_doria x3 (oven)" in report
     assert "omelet x2 (frying_pan)" in report
@@ -87,5 +88,17 @@ def test_display(capsys):
 
     captured = capsys.readouterr()
 
-    assert "Rune Factory 5 Cooking Optimizaiton" in captured.out
+    assert "Rune Factory 5 Cooking Optimization" in captured.out
     assert "Status: OPTIMAL" in captured.out
+
+
+def test_menu_rp():
+    menu = Menu(
+        name="test_menu",
+        recipe=None,
+        sell_price=100,
+        cooking_level=10,
+        rp=5,
+    )
+
+    assert menu.rp == 5

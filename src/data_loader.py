@@ -149,6 +149,7 @@ def load_menus(filepath):
             price_text = row["sellprice"].strip()
             equip_text = row["equipment"].strip()
             ingredients_text = row["ingredients"].strip()
+            rp = int(row["rp"])
 
             # Check empty values
             if (

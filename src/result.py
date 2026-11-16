@@ -12,6 +12,7 @@ class OptimizationResult:
         total_rp,
         ingredient_usage,
         remaining_inventory,
+        crafted_quantities=None,
     ):
         # Optimization status and input settings
         self.status = status
@@ -30,6 +31,8 @@ class OptimizationResult:
         self.ingredient_usage = ingredient_usage
         self.remaining_inventory = remaining_inventory
 
+        self.crafted_quantities = crafted_quantities or {}
+
     def is_optimal(self):
         return self.status == "OPTIMAL"
 
@@ -41,7 +44,7 @@ class OptimizationResult:
 
         lines = [
             "=" * 45,
-            "        Rune Factory 5 Cooking Optimizaiton",
+            "        Rune Factory 5 Cooking Optimization",
             "=" * 45,
             "",
             f"Status: {self.status}",
@@ -61,18 +64,25 @@ class OptimizationResult:
 
                 lines.append(f"{menu_name} x{quantity} ({equipment})")
 
-                lines.append("-" * 45)
-                lines.append(f"Total Dishes: {self.total_dishes}")
-                lines.append(f"Total Revenue: {self.total_revenue}")
-                lines.append(f"Total RP: {self.total_rp:,}")
+            if self.crafted_quantities:
                 lines.append("")
+                lines.append("Crafting Plan:")
 
-                lines.append("Ingredient Usage:")
-                if self.ingredient_usage:
-                    for ingredient, quantity in sorted(self.ingredient_usage.items()):
-                        lines.append(f"   {ingredient}: {quantity}")
-                else:
-                    lines.append("   None")
+                for ingredient, quantity in self.crafted_quantities.items():
+                    lines.append(f"  {ingredient} x{quantity}")
+
+            lines.append("-" * 45)
+            lines.append(f"Total Dishes: {self.total_dishes}")
+            lines.append(f"Total Revenue: {self.total_revenue}")
+            lines.append(f"Total RP: {self.total_rp:,}")
+            lines.append("")
+
+            lines.append("Ingredient Usage:")
+            if self.ingredient_usage:
+                for ingredient, quantity in sorted(self.ingredient_usage.items()):
+                    lines.append(f"   {ingredient}: {quantity}")
+            else:
+                lines.append("   None")
         else:
             lines.append("No feasible cooking plan was found")
 
