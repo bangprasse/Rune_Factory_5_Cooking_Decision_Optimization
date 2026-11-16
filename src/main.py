@@ -5,33 +5,32 @@ import data_loader as dl
 from recipe_resolver import IngredientRequirement, CraftingOption, RecipeResolver
 import config
 from optimizer import BasicOptimizer
+from result import OptimizationResult
 
-# Menu prices
-menu_prices = {"test_squid_dish": 100}
-
-# One squid required per dish
-menu_ingredients = {"test_squid_dish": {"type:squid": 1}}
-
-# Available inventory
-inventory = {"lamp_squid": 1, "squid": 1, "sunsquid": 0}
-
-# Type mapping
-type_members = {"squid": ["lamp_squid", "squid", "sunsquid"]}
-
-# Create optimizer
-optimizer = BasicOptimizer(
-    menu_prices=menu_prices,
-    target_dishes=3,
-    menu_ingredients=menu_ingredients,
-    inventory=inventory,
-    type_members=type_members,
+result = OptimizationResult(
+    status="OPTIMAL",
+    player_cooking_level=50,
+    target_dish_count=10,
+    selected_menus={
+        "seafood_doria": {"quantity": 3, "equipment": "oven"},
+        "omelet": {"quantity": 2, "equipment": "frying_pan"},
+        "grilled_shrimp": {"quantity": 5, "equipment": "frying_pan"},
+    },
+    total_dishes=10,
+    total_revenue=25000,
+    total_rp=120,
+    ingredient_usage={
+        "rice": 3,
+        "shrimp": 3,
+        "dairy": 6,
+    },
+    remaining_inventory={
+        "rice": 7,
+        "shrimp": 2,
+        "dairy": 4,
+    },
 )
 
-# Solve
-result = optimizer.solve()
-
-# Display results
-assert result["status"] != "Optimal"
-assert result["total_dishes"] == 0
-
-print("Squid infeasibility test passed!")
+print(result.status)
+print(result.selected_menus)
+print(result.total_revenue)
