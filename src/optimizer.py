@@ -134,11 +134,43 @@ class BasicOptimizer:
                 <= self.inventory.get(ingredient, 0) + crafted_output
             )
 
-        # 10. Solve using CBC
+        # 10. Stage 1 - Maximize revenue
         stats = problem.solve(pulp.COIN_CMD(msg=False))
         status = stats.status_str
 
-        # 11. Handle cases where infeasible or unsusccesfull solutions
+        # Check whether stage 1 found a solution
+        if not stats.has_solution:
+            return {
+                "status": status,
+                "menu_quantities": {},
+                "crafted_quantities": {},
+                "type_allocations": {},
+                "total_dishes": 0,
+                "total_revenue": None,
+                "ingredient_consumption": {},
+                "remaining_inventory": {},
+            }
+
+        # Save the maximum revenue
+        maximum_revenue = int(round(stats.objective))
+
+        # 11. Stage 2 - Preserve revenue and minimize crafting
+        problem += (
+            pulp.lpSum(
+                self.menu_prices[menu] * quantities[menu] for menu in self.menu_prices
+            )
+            == maximum_revenue
+        )
+
+        problem.sense = pulp.LpMinimize
+
+        problem.setObjective(pulp.lpSum(crafted.values()))
+
+        # Solve again
+        stats = problem.solve(pulp.COIN_CMD(msg=False))
+        status = stats.status_str
+
+        # Check whether stage 1 found a solution
         if not stats.has_solution:
             return {
                 "status": status,
@@ -192,7 +224,11 @@ class BasicOptimizer:
                 )
 
         # 17. Calculate type allocation consumption
-        for (menu, ingredient_type, member), quantity in (selected_type_allocations.items()):
+        for (
+            menu,
+            ingredient_type,
+            member,
+        ), quantity in selected_type_allocations.items():
             ingredient_consumption[member] = (
                 ingredient_consumption.get(member, 0) + quantity
             )
@@ -214,7 +250,7 @@ class BasicOptimizer:
             "crafted_quantities": crafted_quantities,
             "type_allocations": selected_type_allocations,
             "total_dishes": sum(selected_menus.values()),
-            "total_revenue": int(round(stats.objective)),
+            "total_revenue": maximum_revenue,
             "ingredient_consumption": ingredient_consumption,
             "remaining_inventory": remaining_inventory,
         }

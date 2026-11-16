@@ -196,6 +196,8 @@ def load_menus(filepath):
                 recipe=recipe,
                 sell_price=sell_price,
                 cooking_level=cooking_level,
+                rp=rp,
+                equipment=equip_text,
             )
 
             # Store to menus

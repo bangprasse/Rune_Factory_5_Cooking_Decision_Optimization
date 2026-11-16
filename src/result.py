@@ -34,10 +34,10 @@ class OptimizationResult:
         self.crafted_quantities = crafted_quantities or {}
 
     def is_optimal(self):
-        return self.status == "OPTIMAL"
+        return self.status.upper() == "OPTIMAL"
 
     def is_feasible(self):
-        return self.status == "OPTIMAL"
+        return self.status.upper() == "OPTIMAL"
 
     def summary(self):
         """Return a formatted summary of the optimization result"""
