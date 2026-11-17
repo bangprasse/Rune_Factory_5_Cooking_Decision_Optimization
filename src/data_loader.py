@@ -1,46 +1,80 @@
 import csv
-import recipe as rc
-from menu import Menu
+from pathlib import Path
+
+import src.recipe as rc
+from src.menu import Menu
+
+from src.exceptions import DataValidationError, ConfigurationError
+
+
+def _open_csv(filepath):
+    """Open a CSV file and convert file/parsing errors into clear messages."""
+    try:
+        file = open(filepath, "r", newline="", encoding="UTF-8")
+    except OSError as exc:
+        raise DataValidationError(f"Cannot open CSV file {filepath!s}: {exc}") from exc
+
+    return file
+
+
+def _validate_columns(reader, filepath, required_columns):
+    """Check that a CSV file contains all required columns."""
+    actual_columns = set(reader.fieldnames or [])
+    misisng_columns = required_columns - actual_columns
+
+    if misisng_columns:
+        missing = ", ".join(sorted(misisng_columns))
+        raise DataValidationError(f"{filepath}: missing required columns(s): {missing}")
 
 
 def load_inventory(filepath):
     inventory = {}
 
-    with open(filepath, "r", newline="", encoding="UTF-8") as file:
+    with _open_csv(filepath) as file:
         reader = csv.DictReader(file)
 
-        # check required columns
-        required_columns = {"ingredient", "quantity"}
-
-        if not required_columns.issubset(reader.fieldnames or []):
-            raise ValueError(
-                "inventory.csv must contain " "'ingredient' and 'quantity' columns"
-            )
+        _validate_columns(reader, filepath, {"ingredient", "quantity"})
 
         # Read each row
-        for row in reader:
-            ingredient = row["ingredient"].strip()
-            quantity_text = row["quantity"].strip()
+        for row_number, row in enumerate(reader, start=2):
+            ingredient = (row.get("ingredient") or "").strip()
+            quantity_text = (row.get("quantity") or "").strip()
 
             # check empty values
-            if not ingredient or not quantity_text:
-                raise ValueError("ingredient name and quantity cannot be empty")
+            if not ingredient:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: ingredient cannot be empty"
+                )
+
+            if not quantity_text:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: quantity cannot be empty"
+                    f"for ingredient {ingredient!r}"
+                )
 
             # Check duplicate ingredients
             if ingredient in inventory:
-                raise ValueError(f"Duplicate ingredient in inventory: {ingredient!r}")
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: duplicate ingredient "
+                    f"{ingredient!r}"
+                )
 
             # Convert quantity to integer
             try:
                 quantity = int(quantity_text)
-            except ValueError:
-                raise ValueError(
-                    f"Invalid quantitiy for {ingredient!r}: {quantity_text!r}"
-                )
+            except ValueError as exc:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: invalid quantity "
+                    f"{quantity_text!r} for ingredient {ingredient!r}; "
+                    "expected an integer"
+                ) from exc
 
             # Check negative quantity
             if quantity < 0:
-                raise ValueError(f"Quantitiy cannot be negative: {ingredient!r}")
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: quantity cannot be negative "
+                    f"for ingredient {ingredient!r}"
+                )
 
             # Store to inventory
             inventory[ingredient] = quantity
@@ -51,30 +85,34 @@ def load_inventory(filepath):
 def load_ingredient_types(filepath):
     ingredient_types = {}
 
-    with open(filepath, "r", newline="", encoding="UTF-8") as file:
+    with _open_csv(filepath) as file:
         reader = csv.DictReader(file)
 
         # Check required columns
-        required_columns = {"ingredient", "type"}
-
-        if not required_columns.issubset(reader.fieldnames or []):
-            raise ValueError(
-                "ingredient_types.csv must contain 'ingredient' and 'type' columns"
-            )
+        _validate_columns(reader, filepath, {"ingredient", "type"})
 
         # Read each row
-        for row in reader:
-            ingredient = row["ingredient"].strip()
-            ingredient_type = row["type"].strip()
+        for row_number, row in enumerate(reader, start=2):
+            ingredient = (row.get("ingredient") or "").strip()
+            ingredient_type = (row.get("type") or "").strip()
 
             # Check empty values
-            if not ingredient or not ingredient_type:
-                raise ValueError("ingredient name and type cannot be empty")
+            if not ingredient:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: ingredient cannot be empty"
+                )
+
+            if not ingredient_type:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: type cannot be empty "
+                    f"for ingredient {ingredient!r}"
+                )
 
             # Check duplicate ingredients
             if ingredient in ingredient_types:
-                raise ValueError(
-                    f"Duplicate ingredient in ingredient mapping: {ingredient}"
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: duplicate ingredient "
+                    f"{ingredient!r}"
                 )
 
             # Store to ingredient_types
@@ -86,29 +124,35 @@ def load_ingredient_types(filepath):
 def load_crafting_recipes(filepath):
     recipes = {}
 
-    with open(filepath, "r", newline="", encoding="UTF-8") as file:
+    with _open_csv(filepath) as file:
         reader = csv.DictReader(file)
 
         # Check required column
-        required_columns = {"product", "ingredients"}
-
-        if not required_columns.issubset(reader.fieldnames or []):
-            raise ValueError(
-                "crafting_recipes.csv must contain 'product' and 'ingredients' columns"
-            )
+        _validate_columns(reader, filepath, {"product", "ingredients"})
 
         # Read each row
-        for row in reader:
-            product = row["product"].strip()
-            ingredients_text = row["ingredients"].strip()
+        for row_number, row in enumerate(reader, start=2):
+            product = (row.get("product") or "").strip()
+            ingredients_text = (row.get("ingredients") or "").strip()
 
             # Check empty values
-            if not product or not ingredients_text:
-                raise ValueError("Product name and ingredients cannot be empty")
+            if not product:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: product cannot be empty"
+                )
+
+            if not ingredients_text:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: ingredients cannot be empty "
+                    f"for product {product!r}"
+                )
 
             # Check duplicate products
             if product in recipes:
-                raise ValueError(f"Duplicate crafting recipe: {product}")
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: duplicate crafting recipe "
+                    f"for product {product!r}"
+                )
 
             # Split ingredients using +
             ingredients = [
@@ -117,7 +161,10 @@ def load_crafting_recipes(filepath):
 
             # Check for empty ingredient tokens
             if any(not ingredient for ingredient in ingredients):
-                raise ValueError(f"Invalid ingredient list for {product}")
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: invalid ingredient list "
+                    f"for product {product!r}"
+                )
 
             # Create Recipe object
             recipe = rc.Recipe(product, ingredients)
@@ -131,52 +178,84 @@ def load_crafting_recipes(filepath):
 def load_menus(filepath):
     menus = {}
 
-    with open(filepath, "r", newline="", encoding="UTF-8") as file:
+    with _open_csv(filepath) as file:
         reader = csv.DictReader(file)
 
         # Check required column
-        required_columns = {"menu", "level", "sellprice", "equipment", "ingredients"}
-
-        if not required_columns.issubset(reader.fieldnames or []):
-            raise ValueError(
-                "menus.csv must contain 'menu', 'level', 'sellprice', 'equipment' and 'ingredients'"
-            )
+        _validate_columns(
+            reader, filepath, {"menu", "level", "sellprice", "equipment", "ingredients"}
+        )
 
         # Read each row
-        for row in reader:
-            menu_name = row["menu"].strip()
-            level_text = row["level"].strip()
-            price_text = row["sellprice"].strip()
-            equip_text = row["equipment"].strip()
-            ingredients_text = row["ingredients"].strip()
-            rp = int(row["rp"])
+        for row_number, row in enumerate(reader, start=2):
+            menu_name = (row.get("menu") or "").strip()
+            level_text = (row.get("level") or "").strip()
+            price_text = (row.get("sellprice") or "").strip()
+            rp_text = (row.get("rp") or "").strip()
+            equip_text = (row.get("equipment") or "").strip()
+            ingredients_text = (row.get("ingredients") or "").strip()
 
             # Check empty values
-            if (
-                not menu_name
-                or not level_text
-                or not price_text
-                or not equip_text
-                or not ingredients_text
-            ):
-                raise ValueError(
-                    f"Menu name, level, sellprice, equipment and ingredients cannot be empty"
+            if not menu_name:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: menu name cannot be empty"
                 )
 
             # Check duplicate menus
             if menu_name in menus:
-                raise ValueError(f"Duplicate menu: {menu_name!r}")
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: duplicate menu {menu_name!r}"
+                )
+
+            for field, value in (
+                ("level", level_text),
+                ("sellprice", price_text),
+                ("rp", rp_text),
+                ("equipment", equip_text),
+                ("ingredients", ingredients_text),
+            ):
+                if not value:
+                    raise DataValidationError(
+                        f"{filepath}, row {row_number}: {field} cannot be empty "
+                        f"for menu {menu_name}"
+                    )
 
             # Convert to integer for level and sellprice
             try:
                 cooking_level = int(level_text)
+            except ValueError as exc:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: invalid level "
+                    f"{level_text!r} for menu {menu_name!r}; expected an integer"
+                ) from exc
+
+            try:
                 sell_price = int(price_text)
-            except ValueError:
-                raise ValueError(f"Invalid level or sell price for menu: {load_menus}")
+            except ValueError as exc:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: invalid sellprice "
+                    f"{price_text!r} for menu {menu_name!r}; expected an integer"
+                ) from exc
+
+            try:
+                rp = int(rp_text)
+            except ValueError as exc:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: invalid RP "
+                    f"{rp_text!r} for menu {menu_name!r}; expected an integer"
+                ) from exc
 
             # Check negative value for level and sellprice
-            if cooking_level < 0 or sell_price < 0:
-                raise ValueError(f"Level and sell price for menu: {menu_name}")
+            for field, value in (
+                ("level", cooking_level),
+                ("sellprice", sell_price),
+                ("rp", rp),
+            ):
+                if value < 0:
+                    raise DataValidationError(
+                        f"{filepath}, row {row_number}: {field} cannot be negative "
+                        f"for menu {menu_name!r}"
+                    )
 
             # Split ingredient using +
             ingredients = [
@@ -185,7 +264,10 @@ def load_menus(filepath):
 
             # Check for empty ingredient tokens
             if any(not ingredient for ingredient in ingredients):
-                raise ValueError(f"Invalid ingredient list for {menu_name}")
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: invalid ingredient list "
+                    f"for menu {menu_name!r}"
+                )
 
             # Create Recipe object
             recipe = rc.Recipe(menu_name, ingredients)
@@ -209,32 +291,75 @@ def load_menus(filepath):
 def load_config(filepath):
     config = {}
 
-    with open(filepath, "r", newline="", encoding="UTF-8") as file:
+    with _open_csv(filepath) as file:
         reader = csv.DictReader(file)
 
-        # Check required column
-        required_columns = {"setting", "value"}
+        _validate_columns(
+            reader,
+            filepath,
+            {"setting", "value"},
+        )
 
-        if not required_columns.issubset(reader.fieldnames or []):
-            raise ValueError('config.csv must contain "setting" and "value"')
+        for row_number, row in enumerate(reader, start=2):
+            setting = (row.get("setting") or "").strip()
+            value = (row.get("value") or "").strip()
 
-        # Read each row
-        for row in reader:
-            setting = row["setting"].strip()
-            value = row["value"].strip()
+            if not setting:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: setting cannot be empty"
+                )
 
-            # Check empty value
-            if not setting or not value:
-                raise ValueError("Config setting and value cannot be empty")
+            if not value:
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: value cannot be empty "
+                    f"for setting {setting!r}"
+                )
 
-            # Check duplicate setting
             if setting in config:
-                raise ValueError(f"Duplicate configuration setting: {setting}")
+                raise DataValidationError(
+                    f"{filepath}, row {row_number}: duplicate configuration "
+                    f"setting {setting!r}"
+                )
 
-            # Store to config
             config[setting] = value
 
     return config
+
+
+def validate_config(config):
+    """Validate required application settings and their numeric values."""
+    required_settings = {
+        "player_cooking_level": 0,
+        "target_dish_count": 1,
+    }
+
+    validated_config = {}
+
+    for setting, minimum in required_settings.items():
+        if setting not in config:
+            raise ConfigurationError(
+                f"Missing required configuration setting: {setting}"
+            )
+
+        value_text = config[setting]
+
+        try:
+            value = int(value_text)
+        except ValueError as exc:
+            raise ConfigurationError(
+                f"Invalid configuration value for {setting}: "
+                f"{value_text!r}; expected an integer"
+            ) from exc
+
+        if value < minimum:
+            raise ConfigurationError(
+                f"Invalid configuration value for {setting}: {value}; "
+                f"minimum allowed value is {minimum}"
+            )
+
+        validated_config[setting] = value
+
+    return validated_config
 
 
 def build_type_members(ingredient_types):

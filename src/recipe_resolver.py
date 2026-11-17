@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from src.exceptions import RecipeResolutionError
 
 
 @dataclass
@@ -41,17 +42,17 @@ class RecipeResolver:
 
         # Reject empty requirements
         if not token:
-            raise ValueError("Ingredient requirement cannot be empty")
+            raise RecipeResolutionError("Ingredient requirement cannot be empty")
 
         # Handle ingredient-type requirement
         if token.startswith("type:"):
             type_name = token[len("type:") :].strip()
 
             if not type_name:
-                raise ValueError("Ingredient type cannot be empty")
+                raise RecipeResolutionError("Ingredient type cannot be empty")
 
             if type_name not in self.known_types:
-                raise ValueError(f"Unknown ingredient type: {type_name}")
+                raise RecipeResolutionError(f"Unknown ingredient type: {type_name!r}")
 
             return IngredientRequirement(
                 ingredient_name=type_name, quantity=1, requirement_type="type"
@@ -59,7 +60,7 @@ class RecipeResolver:
 
         # Handle spesific ingredient requirements
         if token not in self.known_ingredients:
-            raise ValueError(f"Unknown ingredient: {token}")
+            raise RecipeResolutionError(f"Unknown ingredient: {token!r}")
 
         return IngredientRequirement(
             ingredient_name=token, quantity=1, requirement_type="specific"
@@ -93,28 +94,29 @@ class RecipeResolver:
         return requirement
 
     def resolve_crafting_option(self, requirement, path=None):
-        """Recursively attach crafting alternatives with cycle detection"""
-
+        """Recursively attach crafting alternatives with cycle detection."""
         if path is None:
-            path = set()
+            path = ()
 
-        # Type requirement cannot have direct crafting recipes
+        # Type requirements cannot have direct crafting recipes
         if requirement.requirement_type == "type":
             return requirement
 
         ingredient_name = requirement.ingredient_name
 
-        # Detect a crafting cycle
+        # Detect and report the complete crafting cycle
         if ingredient_name in path:
-            raise ValueError(f"Crafting cycle detected: {ingredient_name}")
+            cycle_start = path.index(ingredient_name)
+            cycle = path[cycle_start:] + (ingredient_name,)
+            cycle_path = " -> ".join(cycle)
 
-        # No crafting recipe exist for this ingredient
+            raise RecipeResolutionError(f"Crafting cycle detected: {cycle_path}")
+
+        # No crafting recipe exists for this ingredient
         if ingredient_name not in self.crafting_recipes:
             return requirement
 
-        # Add this ingredient to the current recursion path
-        current_path = path | {ingredient_name}
-
+        current_path = path + (ingredient_name,)
         recipe = self.crafting_recipes[ingredient_name]
 
         crafting_ingredients = []
@@ -122,16 +124,16 @@ class RecipeResolver:
         for ingredient in recipe.ingredients:
             child_requirement = self.parse_requirement(ingredient)
 
-            # Resolve any nested crafting dependencies
             child_requirement = self.resolve_crafting_option(
-                child_requirement, current_path
+                child_requirement,
+                current_path,
             )
 
             crafting_ingredients.append(child_requirement)
 
-        # Attach the completed crafting alternative
         requirement.crafting_option = CraftingOption(
-            product_name=ingredient_name, ingredients=crafting_ingredients
+            product_name=ingredient_name,
+            ingredients=crafting_ingredients,
         )
 
         return requirement
@@ -149,4 +151,3 @@ class RecipeResolver:
             resolved_requirements.append(requirement)
 
         return resolved_requirements
-    

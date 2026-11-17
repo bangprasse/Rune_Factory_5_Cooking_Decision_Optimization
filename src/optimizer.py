@@ -1,5 +1,7 @@
 import pulp
 
+from src.exceptions import OptimizationError
+
 
 class BasicOptimizer:
     """
@@ -8,6 +10,52 @@ class BasicOptimizer:
 
     Type allocations are created and linked to menu quantities.
     """
+
+    @staticmethod
+    def _require_nonnegative_integer(value, field_name):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise OptimizationError(f"{field_name} must be a nonnegative integer.")
+
+    def _validate_inputs(self):
+        # Target dish count must be a positive integer
+        if (
+            isinstance(self.target_dishes, bool)
+            or not isinstance(self.target_dishes, int)
+            or self.target_dishes <= 0
+        ):
+            raise OptimizationError("target_dishes must be a positive integer.")
+
+        # Menu prices must be nonnegative numbers
+        for menu, price in self.menu_prices.items():
+            if (
+                isinstance(price, bool)
+                or not isinstance(price, (int, float))
+                or price < 0
+            ):
+                raise OptimizationError(f"Invalid price for menu {menu!r}: {price!r}")
+
+        # Inventory quantities must be nonnegative integers
+        for ingredient, quantity in self.inventory.items():
+            self._require_nonnegative_integer(
+                quantity,
+                f"Inventory quantity for {ingredient!r}",
+            )
+
+        # Menu ingredient requirements must be nonnegative integers
+        for menu, requirements in self.menu_ingredients.items():
+            for ingredient, amount in requirements.items():
+                self._require_nonnegative_integer(
+                    amount,
+                    f"Requirement for {ingredient!r} in menu {menu!r}",
+                )
+
+        # Crafting ingredient quantities must be nonnegative integers
+        for product, recipe in self.crafting_recipes.items():
+            for ingredient, amount in recipe.items():
+                self._require_nonnegative_integer(
+                    amount,
+                    f"Requirement for {ingredient!r} in recipe {product!r}",
+                )
 
     def __init__(
         self,
@@ -24,6 +72,15 @@ class BasicOptimizer:
         self.inventory = inventory
         self.crafting_recipes = crafting_recipes or {}
         self.type_members = type_members or {}
+        self._validate_inputs()
+
+    def _solve_problem(self, problem, stage_name):
+        try:
+            return problem.solve(pulp.COIN_CMD(msg=False))
+        except Exception as exc:
+            raise OptimizationError(
+                f"Solver failed during {stage_name}: {exc}"
+            ) from exc
 
     def solve(self):
         # 1. Create the optimization problem
@@ -135,7 +192,11 @@ class BasicOptimizer:
             )
 
         # 10. Stage 1 - Maximize revenue
-        stats = problem.solve(pulp.COIN_CMD(msg=False))
+        stats = self._solve_problem(
+            problem,
+            "revenue maximization",
+        )
+
         status = stats.status_str
 
         # Check whether stage 1 found a solution
@@ -167,7 +228,11 @@ class BasicOptimizer:
         problem.setObjective(pulp.lpSum(crafted.values()))
 
         # Solve again
-        stats = problem.solve(pulp.COIN_CMD(msg=False))
+        stats = self._solve_problem(
+            problem,
+            "crafting minimization",
+        )
+
         status = stats.status_str
 
         # Check whether stage 1 found a solution
