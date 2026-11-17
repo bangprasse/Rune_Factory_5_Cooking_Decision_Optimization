@@ -145,7 +145,7 @@ The inventory must contain concrete ingredient names and quantities, not type re
 
 ## 7. Running the Application
 
-Make sure to update data inside data/config.csv and data/inventory.csv with actual data from the game.
+Make sure to update data inside `data/config.csv` and `data/inventory.csv` with actual data from the game.
 
 From the project root directory, run:
 
