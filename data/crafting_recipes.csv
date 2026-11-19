@@ -2,9 +2,9 @@ product,ingredients
 apple_jam,apple
 bread,flour
 butter,milk_(s-l)
-curry_rice,rice+curry+carrot+potato
+curry_rice,rice+curry_powder+carrot+potato
 cheese,sour_drop+milk_(s-l)
-fruit_juice,apple+grapes+orange
+fruit_juice,apple+grape+orange
 grape_jam,grape
 heavy_spice,purple_grass
 ketchup,sour_drop+tomato
